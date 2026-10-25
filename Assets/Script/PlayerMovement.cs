@@ -7,6 +7,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float jumpForce = 9f;
 
     private Rigidbody2D body;
+    private Animator animator;
     private InputAction moveAction;
     private InputAction jumpAction;
     private readonly RaycastHit2D[] groundHits = new RaycastHit2D[1];
@@ -15,6 +16,7 @@ public class PlayerMovement : MonoBehaviour
     {
         body = GetComponent<Rigidbody2D>();
         body.freezeRotation = true;
+        animator = GetComponent<Animator>();
 
         moveAction = InputSystem.actions?.FindAction("Player/Move");
         jumpAction = InputSystem.actions?.FindAction("Player/Jump");
@@ -33,7 +35,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        // Cast Player's collider a tiny bit downward to see if it touches the floor.
         bool isGrounded = body.Cast(Vector2.down, groundHits, 0.1f) > 0;
 
         if (isGrounded && jumpAction != null && jumpAction.WasPressedThisFrame())
@@ -48,6 +49,9 @@ public class PlayerMovement : MonoBehaviour
 
         float horizontal = moveAction.ReadValue<Vector2>().x;
         body.linearVelocity = new Vector2(horizontal * moveSpeed, body.linearVelocity.y);
+
+        if (animator != null)
+            animator.SetBool("isRunning", Mathf.Abs(horizontal) > 0.1f);
     }
 
     private void OnDisable()
