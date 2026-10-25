@@ -5,20 +5,15 @@ public class PlayerMovement : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float jumpForce = 9f;
-    [SerializeField] private float groundCheckDistance = 0.08f;
 
     private Rigidbody2D body;
-    private Collider2D playerCollider;
     private InputAction moveAction;
     private InputAction jumpAction;
-    private bool isGrounded;
+    private readonly RaycastHit2D[] groundHits = new RaycastHit2D[1];
 
     private void Awake()
     {
         body = GetComponent<Rigidbody2D>();
-        playerCollider = GetComponent<Collider2D>();
-
-        // Keep the character upright while the Rigidbody2D handles falling.
         body.freezeRotation = true;
 
         moveAction = InputSystem.actions?.FindAction("Player/Move");
@@ -26,7 +21,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (moveAction == null || jumpAction == null)
         {
-            Debug.LogError("Could not find Player/Move or Player/Jump in the project Input Actions.", this);
             enabled = false;
         }
     }
@@ -39,12 +33,12 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        isGrounded = CheckGrounded();
+        // Cast Player's collider a tiny bit downward to see if it touches the floor.
+        bool isGrounded = body.Cast(Vector2.down, groundHits, 0.1f) > 0;
 
         if (isGrounded && jumpAction != null && jumpAction.WasPressedThisFrame())
         {
             body.linearVelocity = new Vector2(body.linearVelocity.x, jumpForce);
-            isGrounded = false;
         }
     }
 
@@ -54,24 +48,6 @@ public class PlayerMovement : MonoBehaviour
 
         float horizontal = moveAction.ReadValue<Vector2>().x;
         body.linearVelocity = new Vector2(horizontal * moveSpeed, body.linearVelocity.y);
-    }
-
-    private bool CheckGrounded()
-    {
-        if (body == null || playerCollider == null) return false;
-
-        Vector2 feetPosition = new Vector2(
-            playerCollider.bounds.center.x,
-            playerCollider.bounds.min.y - 0.02f);
-
-        Collider2D[] nearbyColliders = Physics2D.OverlapCircleAll(feetPosition, groundCheckDistance);
-        foreach (Collider2D nearbyCollider in nearbyColliders)
-        {
-            if (nearbyCollider != playerCollider && !nearbyCollider.isTrigger)
-                return true;
-        }
-
-        return false;
     }
 
     private void OnDisable()

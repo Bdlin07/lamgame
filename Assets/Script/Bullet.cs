@@ -9,9 +9,8 @@ public class Bullet : MonoBehaviour
     private Vector2 direction;
     private Transform player;
     private float distanceTravelled;
-    private bool isReturning;
 
-    // PlayerShooter calls this when it creates the bullet.
+    public bool IsStopped { get; private set; }
     public void Launch(Vector2 shotDirection, Transform shooter)
     {
         direction = shotDirection.normalized;
@@ -20,42 +19,26 @@ public class Bullet : MonoBehaviour
 
     private void Update()
     {
-        if (player == null) return;
+        if (player == null || IsStopped) return;
 
         float step = speed * Time.deltaTime;
+        Vector2 nextPosition = (Vector2)transform.position + direction * step;
+        Collider2D[] nearbyColliders = Physics2D.OverlapCircleAll(nextPosition, hitRadius);
 
-        if (isReturning)
+        // Check each nearby collider until the bullet finds a real obstacle.
+        foreach (Collider2D collider in nearbyColliders)
         {
-            Vector2 toPlayer = (Vector2)player.position - (Vector2)transform.position;
+            if (collider.transform == player || collider.isTrigger) continue;
 
-            if (toPlayer.magnitude < 0.3f)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            direction = toPlayer.normalized;
-        }
-        else
-        {
-            Vector2 nextPosition = (Vector2)transform.position + direction * step;
-            Collider2D[] thingsInTheWay = Physics2D.OverlapCircleAll(nextPosition, hitRadius);
-
-            foreach (Collider2D thing in thingsInTheWay)
-            {
-                if (thing.transform == player || thing.isTrigger) continue;
-
-                isReturning = true;
-                return;
-            }
-
-            transform.position = nextPosition;
-            distanceTravelled += step;
-
-            if (distanceTravelled >= maxDistance)
-                isReturning = true;
+            transform.position = nextPosition - direction * hitRadius;
+            IsStopped = true;
+            return;
         }
 
-        transform.position += (Vector3)(direction * step);
+        transform.position = nextPosition;
+        distanceTravelled += step;
+
+        if (distanceTravelled >= maxDistance)
+            IsStopped = true;
     }
 }

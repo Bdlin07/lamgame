@@ -4,62 +4,54 @@ using UnityEngine.InputSystem;
 public class PlayerShooter : MonoBehaviour
 {
     [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private float pickupDistance = 1.2f;
 
-    private InputAction attackAction;
-    private InputAction aimAction;
-    private Camera mainCamera;
     private Bullet currentBullet;
-
-    private void Awake()
-    {
-        attackAction = InputSystem.actions?.FindAction("Player/Attack");
-        aimAction = InputSystem.actions?.FindAction("UI/Point");
-        mainCamera = Camera.main;
-
-        if (attackAction == null || aimAction == null)
-        {
-            Debug.LogError("Could not find Player/Attack or UI/Point in the project Input Actions.", this);
-            enabled = false;
-        }
-    }
-
-    private void OnEnable()
-    {
-        attackAction?.Enable();
-        aimAction?.Enable();
-    }
 
     private void Update()
     {
-        if (attackAction.WasPressedThisFrame() && currentBullet == null)
+        if (Mouse.current == null || Keyboard.current == null) return;
+
+        // Chuột trái bắn, nhưng chỉ khi chưa có viên đạn ngoài màn hình.
+        if (Mouse.current.leftButton.wasPressedThisFrame && currentBullet == null)
             Shoot();
+
+        // Đứng gần viên đạn đã dừng rồi nhấn E để nhặt.
+        if (currentBullet != null && currentBullet.IsStopped && Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            float distance = Vector2.Distance(transform.position, currentBullet.transform.position);
+            if (distance <= pickupDistance)
+            {
+                Destroy(currentBullet.gameObject);
+                currentBullet = null;
+            }
+        }
     }
 
     private void Shoot()
     {
         if (bulletPrefab == null)
         {
-            Debug.LogError("Drag your Bullet prefab into the Bullet Prefab field on PlayerShooter.", this);
+            Debug.LogError("Kéo prefab Bullet vào ô Bullet Prefab của Player Shooter.", this);
             return;
         }
 
-        if (mainCamera == null) mainCamera = Camera.main;
-        if (mainCamera == null) return;
+        Camera camera = Camera.main;
+        if (camera == null) return;
 
-        Vector2 mouseScreenPosition = aimAction.ReadValue<Vector2>();
-        Vector3 mouseWorldPosition = mainCamera.ScreenToWorldPoint(mouseScreenPosition);
-        mouseWorldPosition.z = 0f;
+        // Đổi vị trí chuột trên màn hình thành vị trí trong game.
+        Vector3 mousePosition = camera.ScreenToWorldPoint(Mouse.current.position.ReadValue());
+        mousePosition.z = 0f;
 
-        Vector2 direction = ((Vector2)mouseWorldPosition - (Vector2)transform.position).normalized;
-        if (direction.sqrMagnitude < 0.01f) return;
+        Vector2 direction = ((Vector2)mousePosition - (Vector2)transform.position).normalized;
+        Vector3 startPosition = transform.position + (Vector3)(direction * 0.65f);
 
-        Vector3 spawnPosition = transform.position + (Vector3)(direction * 0.65f);
-        GameObject bulletObject = Instantiate(bulletPrefab, spawnPosition, Quaternion.identity);
+        GameObject bulletObject = Instantiate(bulletPrefab, startPosition, Quaternion.identity);
         currentBullet = bulletObject.GetComponent<Bullet>();
 
         if (currentBullet == null)
         {
-            Debug.LogError("The Bullet prefab needs a Bullet component.", bulletObject);
+            Debug.LogError("Prefab Bullet cần có component Bullet.", bulletObject);
             Destroy(bulletObject);
             return;
         }
